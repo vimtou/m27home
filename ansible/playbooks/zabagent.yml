@@ -1,0 +1,48 @@
+- name: Zabbix-Agent
+  hosts: all
+  become: yes
+  vars:
+    zabbix_server: "62.84.118.118"
+    zabbix_hostname: "{{ ansible_hostname }}"
+
+  tasks:
+
+  - name: Install Repository Zabbix Pt.1
+    shell: sudo wget -N -P /tmp/ https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.0-4+ubuntu20.04_all.deb
+
+  - name: Install Repository Zabbix Pt.2
+    shell: dpkg -i /tmp/zabbix-release_6.0-4+ubuntu20.04_all.deb
+
+  - name: Update cache
+    apt:
+      update_cache: yes
+
+  - name: Install zabbix-agent
+    apt:
+      pkg: zabbix-agent
+      state: present
+
+  - name: Stop service zabbix-agent
+    become: yes
+    service:
+          name: zabbix-agent.service
+          state: stopped
+
+  - name: Configure Zabbix agent
+    lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+    with_items:
+        - { regexp: '^Server=', line: 'Server={{ zabbix_server }}' }
+        - { regexp: '^ServerActive=', line: 'ServerActive={{ zabbix_server }}' }
+        - { regexp: '^Hostname=', line: 'Hostname={{ zabbix_hostname }}' }
+        - { regexp: '^HostMetadata=', line: 'HostMetadata=Linux Servers' }
+
+  - name: Start service zabbix-agent
+    become: yes
+    service:
+          name: zabbix-agent
+          enabled: yes
+          state: started
